@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/logs"
 )
 
 var adinfo_map map[int]adinfo
@@ -276,6 +277,7 @@ type request_ext struct {
 type response struct {
 	Id      string             `json:"id"`
 	Seatbid []response_seatbid `json:"seatbid"`
+	Ts      int64              `json:"ts"`
 }
 
 type response_seatbid struct {
@@ -316,6 +318,25 @@ type MainController struct {
 
 func (c *MainController) Get() {
 	c.Ctx.WriteString("this is hello")
+}
+
+func initLogger() (err error) {
+
+	config := make(map[string]interface{})
+	config["filename"] = beego.AppConfig.String("log_path")
+
+	// map 转 json
+	configStr, err := json.Marshal(config)
+	if err != nil {
+		fmt.Println("initLogger failed, marshal err:", err)
+		return
+	}
+	// log 的配置
+	beego.SetLogger(logs.AdapterFile, string(configStr))
+	// log打印文件名和行数
+	beego.SetLogFuncCall(true)
+	fmt.Println(string(configStr))
+	return
 }
 
 func (c *MainController) Load() {
@@ -394,60 +415,91 @@ func (c *MainController) Clear() {
 }
 
 func (c *MainController) GetAdJson() {
+
 	//c.Ctx.WriteString("this is GetAdJson \n")
-	//c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
+	c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
 	//c.Ctx.WriteString("c.Ctx.Input.RequestBody end \n")
 	inputString := c.Ctx.Input.RequestBody
 	var requestJson request
 	var responseJson response
+	need_ad_type := 0
+	res_adid := 0
+	start := time.Now().Nanosecond()
+	fmt.Println("requestJson.Id:", requestJson.Id)
+	fmt.Println("responseJson.Id:", responseJson.Id)
 
+	responseJson.Ts = 0
+	responseJson.Seatbid = []response_seatbid{}
 	if err := json.Unmarshal([]byte(inputString), &requestJson); err == nil {
 
+		responseJson.Id = requestJson.Id
+		if requestJson.Imp[0].Native.RequestOneof.RequestNative.Layout > 0 {
+			need_ad_type = 5
+		} else if requestJson.Imp[0].Video.W > 0 {
+			need_ad_type = 3
+		} else if requestJson.Imp[0].Banner.W > 0 {
+			need_ad_type = 1
+		}
 		//responseJson = searchAd(requestJson)
 		if Adinfo, err := searchAd(requestJson); err == nil {
 
-			responseJson.Id = requestJson.Id
-			// 这里继续填写广告信息
+			if Adinfo.Adid > 0 {
+				res_adid = Adinfo.Adid
+				// 这里继续填写广告信息
 
-			var responseJson_seatbid response_seatbid
-			var responseJson_seatbid_bid response_seatbid_bid
-			var responseJson_seatbid_bid_ext response_seatbid_bid_ext
-			responseJson_seatbid_bid.Id = "id-" + strconv.Itoa(Adinfo.Adid)
-			responseJson_seatbid_bid.Impid = "impid-" + strconv.Itoa(Adinfo.Adid)
-			responseJson_seatbid_bid.Price = float64(Adinfo.Price) / 100
-			responseJson_seatbid_bid.Adid = "Adid-" + strconv.Itoa(Adinfo.Adid)
-			responseJson_seatbid_bid.W = Adinfo.Banner.Weight
-			responseJson_seatbid_bid.H = Adinfo.Banner.Height
-			responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
-			responseJson_seatbid_bid.Adm = ""
+				var responseJson_seatbid response_seatbid
+				var responseJson_seatbid_bid response_seatbid_bid
+				var responseJson_seatbid_bid_ext response_seatbid_bid_ext
+				responseJson_seatbid_bid.Id = "id-" + strconv.Itoa(Adinfo.Adid)
+				responseJson_seatbid_bid.Impid = "impid-" + strconv.Itoa(Adinfo.Adid)
+				responseJson_seatbid_bid.Price = float64(Adinfo.Price) / 100
+				responseJson_seatbid_bid.Adid = "Adid-" + strconv.Itoa(Adinfo.Adid)
+				responseJson_seatbid_bid.W = Adinfo.Banner.Weight
+				responseJson_seatbid_bid.H = Adinfo.Banner.Height
+				responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
+				responseJson_seatbid_bid.Adm = ""
 
-			responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
-			for _, tmp := range Adinfo.Ext.Imptrackers {
-				responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
+				responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
+				for _, tmp := range Adinfo.Ext.Imptrackers {
+					responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
+				}
+				for _, tmp := range Adinfo.Ext.Clktrackers {
+					responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
+				}
+				responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
+				responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
+
+				responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
+				responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
+
+				responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
+				fmt.Printf("add adid \n")
+			} else {
+				//fmt.Printf(responseJson.Seatbid)
+				fmt.Printf("add not adid \n")
 			}
-			for _, tmp := range Adinfo.Ext.Clktrackers {
-				responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
-			}
-			responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
-			responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
-
-			responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
-			responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
-
-			responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
-			//fmt.Printf(responseJson.Seatbid)
 		}
 
 	} else {
 		c.Ctx.WriteString("requestJson.id err : \n")
 	}
 
+	//time.Sleep(100 * time.Nanosecond)
+	end := time.Now().Nanosecond()
 	//fmt.Fprintln(writer," responseJson is ",responseJson)
-	jsonStr, err := json.Marshal(responseJson)
+	responseJson.Ts = int64(end - start)
+	fmt.Println("start:", start)
+	fmt.Println("end:", end)
+
+	jsonStr, err := json.MarshalIndent(responseJson, "", "\t") //格式化编码
 	if err != nil {
 		c.Ctx.WriteString(" responseJson is failed \n")
 	}
+
+	//fmt.Println("response json : ", jsonStr)
+
 	c.Ctx.WriteString(string(jsonStr))
+	beego.Info(need_ad_type, "\x02", res_adid)
 
 	return
 }
@@ -493,21 +545,28 @@ func searchAd(requestJson request) (adinfo adinfo, err error) {
 	// 比重随机
 
 	// 获取最终结果
+	if len(adinfo_map_res) > 0 {
+		res_adid := adinfo_map_res[GenerateRangeNum(0, len(adinfo_map_res))]
 
-	if adinfo, err := getAdInfo(adinfo_map_res[GenerateRangeNum(0, len(adinfo_map_res))]); err == nil {
+		if adinfo, err := getAdInfo(res_adid); err == nil {
 
-		fmt.Println("searchAd success ", adinfo)
-		return adinfo, nil
+			fmt.Println("searchAd success ", adinfo)
+			return adinfo, nil
+		} else {
+			fmt.Println("searchAd failed ")
+			var err error
+			err = errors.New("searchAd failed ")
+			return adinfo, err
+		}
 	} else {
-		fmt.Println("searchAd failed ")
-		var err error
-		err = errors.New("searchAd failed ")
 		return adinfo, err
+
 	}
 
 }
 
 func getAdInfo(adid int) (adinfo adinfo, err error) {
+	fmt.Println("get adinfo :", adid)
 	if _, ok := adinfo_map[adid]; ok {
 		return adinfo_map[adid], nil
 	} else {
