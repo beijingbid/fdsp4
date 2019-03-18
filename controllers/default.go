@@ -44,12 +44,21 @@ type adinfo struct {
 }
 
 type adinfo_ext struct {
-	Action         int
-	Imptrackers    []string
-	Clktrackers    []string
-	Clkurl         string
-	Html_snippet   string
-	Inventory_type int
+	Action              int
+	Imptrackers         []string
+	Clktrackers         []string
+	Clkurl              string
+	Html_snippet        string
+	Inventory_type      int
+	Fallback_url        string
+	Fallback_action     int
+	Download_file_name  string
+	Title               string
+	Desc                string
+	Play_start_trackers []string
+	Play_end_trackers   []string
+	Nurl                string
+	Adm                 string
 }
 
 type banner struct {
@@ -121,15 +130,15 @@ type request struct {
 }
 
 type request_imp struct {
-	Id          string                 `json:"id"`
-	Banner      request_imp_banner     `json:"banner"`
-	Video       request_imp_video      `json:"video"`
-	Native      request_imp_native     `json:"native"`
-	Instl       bool                   `json:"instl"`
-	Tagid       string                 `json:"tagid"`
-	Bidfloor    int                    `json:"bidfloor"`
-	Bidfloorcur string                 `json:"bidfloorcur"`
-	Ext         request_imp_banner_ext `json:"ext"`
+	Id          string             `json:"id"`
+	Banner      request_imp_banner `json:"banner"`
+	Video       request_imp_video  `json:"video"`
+	Native      request_imp_native `json:"native"`
+	Instl       bool               `json:"instl"`
+	Tagid       string             `json:"tagid"`
+	Bidfloor    int                `json:"bidfloor"`
+	Bidfloorcur string             `json:"bidfloorcur"`
+	Ext         request_imp_ext    `json:"ext"`
 }
 type request_imp_banner struct {
 	W   int `json:"w"`
@@ -137,10 +146,11 @@ type request_imp_banner struct {
 	Pos int `json:"pos"`
 }
 
-type request_imp_banner_ext struct {
-	Inventory_typs []int  `json:"inventory_typs"`
-	Ad_type        int    `json:"ad_type"`
-	Tag_name       string `json:"tag_name"`
+type request_imp_ext struct {
+	Is_splash_screen bool   `json:"is_splash_screen"`
+	Inventory_types  []int  `json:"inventory_types"`
+	Ad_type          int    `json:"ad_type"`
+	Tag_name         string `json:"tag_name"`
 }
 type request_imp_video struct {
 	Mimes          []string `json:"mimes"`
@@ -284,26 +294,73 @@ type response_seatbid struct {
 	Bid []response_seatbid_bid `json:"bid"`
 }
 type response_seatbid_bid struct {
-	Id    string                   `json:"id"`
-	Impid string                   `json:"impid"`
-	Price float64                  `json:"price"`
-	Adid  string                   `json:"adid"`
-	W     int                      `json:"w"`
-	H     int                      `json:"h"`
-	Iurl  string                   `json:"iurl"`
-	Adm   string                   `json:"adm"`
-	Ext   response_seatbid_bid_ext `json:"ext"`
+	Id                  string                        `json:"id"`
+	Impid               string                        `json:"impid"`
+	Price               float64                       `json:"price"`
+	Adid                string                        `json:"adid"`
+	Admoneof            response_seatbid_bid_admoneof `json:"admoneof,omitempty"`
+	W                   int                           `json:"w,omitempty"`
+	H                   int                           `json:"h,omitempty"`
+	Iurl                string                        `json:"iurl"`
+	Nurl                string                        `json:"nurl,omitempty"`
+	Adm                 string                        `json:"adm,omitempty"`
+	Ext                 response_seatbid_bid_ext      `json:"ext,omitempty"`
+	Fallback_url        string                        `json:"fallback_url,omitempty"`
+	Fallback_action     int                           `json:"fallback_action,omitempty"`
+	Play_start_trackers []string                      `json:"play_start_trackers,omitempty"`
+	Play_end_trackers   []string                      `json:"play_end_trackers,omitempty"`
 }
 
 type response_seatbid_bid_ext struct {
-	Clkurl         string   `json:"clkurl"`
-	Imptrackers    []string `json:"imptrackers"`
-	Clktrackers    []string `json:"clktrackers"`
-	Title          string   `json:"title"`
-	Desc           string   `json:"desc"`
-	Action         int      `json:"action"`
-	Html_snippet   string   `json:"html_snappet"`
-	Inventory_type int      `json:"inventory_type"`
+	Clkurl         string   `json:"clkurl,omitempty"`
+	Imptrackers    []string `json:"imptrackers,omitempty"`
+	Clktrackers    []string `json:"clktrackers,omitempty"`
+	Title          string   `json:"title,omitempty"`
+	Desc           string   `json:"desc,omitempty"`
+	Action         int      `json:"action,omitempty"`
+	Html_snippet   string   `json:"html_snappet,omitempty"`
+	Inventory_type int      `json:"inventory_type,omitempty"`
+}
+
+type response_seatbid_bid_admoneof struct {
+	Adm       string                                  `json:"adm,omitempty"`
+	Admnative response_seatbid_bid_admoneof_admnative `json:"admnative,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative struct {
+	Assets []response_seatbid_bid_admoneof_admnative_asset `json:"assets,omitempty"`
+	Link   response_seatbid_bid_admoneof_admnative_link    `json:"link,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative_asset struct {
+	Id    int                                                 `json:"id"`
+	Title response_seatbid_bid_admoneof_admnative_asset_title `json:"title,omitempty"`
+	Img   response_seatbid_bid_admoneof_admnative_asset_image `json:"image,omitempty"`
+	Video response_seatbid_bid_admoneof_admnative_asset_video `json:"video,omitempty"`
+	Data  response_seatbid_bid_admoneof_admnative_asset_data  `json:"data,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative_asset_title struct {
+	Text string `json:"text,omitempty"`
+}
+type response_seatbid_bid_admoneof_admnative_asset_image struct {
+	Url string `json:"url,omitempty"`
+	W   int    `json:"w,omitempty"`
+	H   int    `json:"h,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative_asset_video struct {
+	Url string `json:"url,omitempty"`
+	W   int    `json:"w,omitempty"`
+	H   int    `json:"h,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative_asset_data struct {
+	Value string `json:"value,omitempty"`
+}
+
+type response_seatbid_bid_admoneof_admnative_link struct {
+	Url string `json:"url"`
 }
 
 func GenerateRangeNum(min, max int) int {
@@ -417,7 +474,7 @@ func (c *MainController) Clear() {
 func (c *MainController) GetAdJson() {
 
 	//c.Ctx.WriteString("this is GetAdJson \n")
-	c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
+	//c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
 	//c.Ctx.WriteString("c.Ctx.Input.RequestBody end \n")
 	inputString := c.Ctx.Input.RequestBody
 	var requestJson request
@@ -457,21 +514,72 @@ func (c *MainController) GetAdJson() {
 				responseJson_seatbid_bid.W = Adinfo.Banner.Weight
 				responseJson_seatbid_bid.H = Adinfo.Banner.Height
 				responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
-				responseJson_seatbid_bid.Adm = ""
+				responseJson_seatbid_bid.Adm = Adinfo.Ext.Adm
+				responseJson_seatbid_bid.Fallback_url = Adinfo.Ext.Fallback_url
+				responseJson_seatbid_bid.Fallback_action = Adinfo.Ext.Fallback_action
+				responseJson_seatbid_bid.Nurl = Adinfo.Ext.Nurl
+				responseJson_seatbid_bid.Play_start_trackers = Adinfo.Ext.Play_start_trackers
+				responseJson_seatbid_bid.Play_end_trackers = Adinfo.Ext.Play_end_trackers
 
 				responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
-				for _, tmp := range Adinfo.Ext.Imptrackers {
-					responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
-				}
-				for _, tmp := range Adinfo.Ext.Clktrackers {
-					responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
-				}
+				/*
+					for _, tmp := range Adinfo.Ext.Imptrackers {
+						responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
+					}
+					for _, tmp := range Adinfo.Ext.Clktrackers {
+						responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
+					}
+				*/
+				responseJson_seatbid_bid_ext.Imptrackers = responseJson_seatbid_bid_ext.Imptrackers
+				responseJson_seatbid_bid_ext.Clktrackers = responseJson_seatbid_bid_ext.Clktrackers
 				responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
 				responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
 
 				responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
-				responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
 
+				// 原生广告，填充assets信息
+				if requestJson.Imp[0].Ext.Ad_type == 3 {
+					var admoneof response_seatbid_bid_admoneof
+					var admnative response_seatbid_bid_admoneof_admnative
+					//
+					for _, nv := range Adinfo.Native.Assets {
+						//jsonStrtemp, _ := json.MarshalIndent(nv, "", "\t") //格式化编码
+						//fmt.Println("jsonStrtemp:", string(jsonStrtemp))
+						var admnative_asset response_seatbid_bid_admoneof_admnative_asset
+
+						if nv.Asset_oneof == 3 {
+							var admnative_asset_title response_seatbid_bid_admoneof_admnative_asset_title
+							admnative_asset_title.Text = nv.Title.Title
+							//fmt.Println("title:", nv.Title.Title)
+							admnative_asset.Id = nv.Id
+							admnative_asset.Title = admnative_asset_title
+						} else if nv.Asset_oneof == 4 {
+							var admnative_asset_image response_seatbid_bid_admoneof_admnative_asset_image
+							admnative_asset_image.Url = nv.Image.Src
+							admnative_asset.Id = nv.Id
+							admnative_asset.Img = admnative_asset_image
+						} else if nv.Asset_oneof == 5 {
+							var admnative_asset_video response_seatbid_bid_admoneof_admnative_asset_video
+							admnative_asset_video.Url = nv.Video.Src
+							//fmt.Println("title:", nv.Title.Title)
+							admnative_asset.Id = nv.Id
+							admnative_asset.Video = admnative_asset_video
+						} else if nv.Asset_oneof == 6 {
+							var admnative_asset_data response_seatbid_bid_admoneof_admnative_asset_data
+							admnative_asset_data.Value = nv.Data.Data
+							//fmt.Println("title:", nv.Title.Title)
+							admnative_asset.Id = nv.Id
+							admnative_asset.Data = admnative_asset_data
+						}
+						admnative.Assets = append(admnative.Assets, admnative_asset)
+					}
+					admnative.Link.Url = Adinfo.Ext.Clkurl
+					admoneof.Admnative = admnative
+					responseJson_seatbid_bid.Admoneof = admoneof
+					fmt.Println(" Admoneof admoneof ")
+				}
+
+				responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
 				responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
 				fmt.Printf("add adid \n")
 			} else {
@@ -481,7 +589,7 @@ func (c *MainController) GetAdJson() {
 		}
 
 	} else {
-		c.Ctx.WriteString("requestJson.id err : \n")
+		//c.Ctx.WriteString("requestJson.id err : \n")
 	}
 
 	//time.Sleep(100 * time.Nanosecond)
@@ -491,14 +599,19 @@ func (c *MainController) GetAdJson() {
 	fmt.Println("start:", start)
 	fmt.Println("end:", end)
 
-	jsonStr, err := json.MarshalIndent(responseJson, "", "\t") //格式化编码
-	if err != nil {
-		c.Ctx.WriteString(" responseJson is failed \n")
-	}
+	c.Data["json"] = responseJson
+	c.ServeJSON()
+	/*
+		//jsonStr, err := json.MarshalIndent(responseJson, "", "\t") //格式化编码
+		jsonStr, err := json.Marshal(responseJson) //格式化编码
+		if err != nil {
+			c.Ctx.WriteString(" responseJson is failed \n")
+		}
 
-	//fmt.Println("response json : ", jsonStr)
+		//fmt.Println("response json : ", jsonStr)
 
-	c.Ctx.WriteString(string(jsonStr))
+		c.Ctx.WriteString(string(jsonStr))
+	*/
 	beego.Info(need_ad_type, "\x02", res_adid)
 
 	return
