@@ -7,7 +7,7 @@ import (
 	"io"
 
 	//"io/ioutil"
-	//"reflect"
+	"reflect"
 
 	//"net/http"
 	"os"
@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 	//"flag"
 	"strconv"
+
+	//"fdsp4/proto/zplay"
 
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
@@ -363,14 +365,14 @@ type response_seatbid_bid_admoneof_admnative_link struct {
 	Url string `json:"url"`
 }
 
+type MainController struct {
+	beego.Controller
+}
+
 func GenerateRangeNum(min, max int) int {
 	rand.Seed(time.Now().Unix())
 	randNum := rand.Intn(max-min) + min
 	return randNum
-}
-
-type MainController struct {
-	beego.Controller
 }
 
 func (c *MainController) Get() {
@@ -471,131 +473,155 @@ func (c *MainController) Clear() {
 	return
 }
 
-func (c *MainController) GetAdJson() {
+func StructToMap(obj interface{}) map[string]interface{} {
+	obj1 := reflect.TypeOf(obj)
+	obj2 := reflect.ValueOf(obj)
 
-	//c.Ctx.WriteString("this is GetAdJson \n")
-	//c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
-	//c.Ctx.WriteString("c.Ctx.Input.RequestBody end \n")
+	var data = make(map[string]interface{})
+	for i := 0; i < obj2.NumField(); i++ {
+		data[obj1.Field(i).Name] = obj2.Field(i).Interface()
+	}
+	return data
+}
+func (c *MainController) GetAdJson2() {
+
 	inputString := c.Ctx.Input.RequestBody
-	var requestJson request
-	var responseJson response
+	var requestJson map[string]interface{}
+	responseJson := make(map[string]interface{})
 	need_ad_type := 0
 	res_adid := 0
 	start := time.Now().Nanosecond()
-	fmt.Println("requestJson.Id:", requestJson.Id)
-	fmt.Println("responseJson.Id:", responseJson.Id)
 
-	responseJson.Ts = 0
-	responseJson.Seatbid = []response_seatbid{}
 	if err := json.Unmarshal([]byte(inputString), &requestJson); err == nil {
 
-		responseJson.Id = requestJson.Id
-		if requestJson.Imp[0].Native.RequestOneof.RequestNative.Layout > 0 {
-			need_ad_type = 5
-		} else if requestJson.Imp[0].Video.W > 0 {
-			need_ad_type = 3
-		} else if requestJson.Imp[0].Banner.W > 0 {
-			need_ad_type = 1
-		}
-		//responseJson = searchAd(requestJson)
-		if Adinfo, err := searchAd(requestJson); err == nil {
+		//c.Ctx.WriteString("requestJson Unmarshal success")
+		_, err := json.MarshalIndent(requestJson, "", "\t")
+		if err == nil {
+			//c.Ctx.WriteString("rjsonstr Unmarshal success")
+		} else {
+			//c.Ctx.WriteString("rjsonstr Unmarshal failed")
 
-			if Adinfo.Adid > 0 {
-				res_adid = Adinfo.Adid
-				// 这里继续填写广告信息
-
-				var responseJson_seatbid response_seatbid
-				var responseJson_seatbid_bid response_seatbid_bid
-				var responseJson_seatbid_bid_ext response_seatbid_bid_ext
-				responseJson_seatbid_bid.Id = "id-" + strconv.Itoa(Adinfo.Adid)
-				responseJson_seatbid_bid.Impid = "impid-" + strconv.Itoa(Adinfo.Adid)
-				responseJson_seatbid_bid.Price = float64(Adinfo.Price) / 100
-				responseJson_seatbid_bid.Adid = "Adid-" + strconv.Itoa(Adinfo.Adid)
-				responseJson_seatbid_bid.W = Adinfo.Banner.Weight
-				responseJson_seatbid_bid.H = Adinfo.Banner.Height
-				responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
-				responseJson_seatbid_bid.Adm = Adinfo.Ext.Adm
-				responseJson_seatbid_bid.Fallback_url = Adinfo.Ext.Fallback_url
-				responseJson_seatbid_bid.Fallback_action = Adinfo.Ext.Fallback_action
-				responseJson_seatbid_bid.Nurl = Adinfo.Ext.Nurl
-				responseJson_seatbid_bid.Play_start_trackers = Adinfo.Ext.Play_start_trackers
-				responseJson_seatbid_bid.Play_end_trackers = Adinfo.Ext.Play_end_trackers
-
-				responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
-				/*
-					for _, tmp := range Adinfo.Ext.Imptrackers {
-						responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
-					}
-					for _, tmp := range Adinfo.Ext.Clktrackers {
-						responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
-					}
-				*/
-				responseJson_seatbid_bid_ext.Imptrackers = responseJson_seatbid_bid_ext.Imptrackers
-				responseJson_seatbid_bid_ext.Clktrackers = responseJson_seatbid_bid_ext.Clktrackers
-				responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
-				responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
-
-				responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
-
-				// 原生广告，填充assets信息
-				if requestJson.Imp[0].Ext.Ad_type == 3 {
-					var admoneof response_seatbid_bid_admoneof
-					var admnative response_seatbid_bid_admoneof_admnative
-					//
-					for _, nv := range Adinfo.Native.Assets {
-						//jsonStrtemp, _ := json.MarshalIndent(nv, "", "\t") //格式化编码
-						//fmt.Println("jsonStrtemp:", string(jsonStrtemp))
-						var admnative_asset response_seatbid_bid_admoneof_admnative_asset
-
-						if nv.Asset_oneof == 3 {
-							var admnative_asset_title response_seatbid_bid_admoneof_admnative_asset_title
-							admnative_asset_title.Text = nv.Title.Title
-							//fmt.Println("title:", nv.Title.Title)
-							admnative_asset.Id = nv.Id
-							admnative_asset.Title = admnative_asset_title
-						} else if nv.Asset_oneof == 4 {
-							var admnative_asset_image response_seatbid_bid_admoneof_admnative_asset_image
-							admnative_asset_image.Url = nv.Image.Src
-							admnative_asset.Id = nv.Id
-							admnative_asset.Img = admnative_asset_image
-						} else if nv.Asset_oneof == 5 {
-							var admnative_asset_video response_seatbid_bid_admoneof_admnative_asset_video
-							admnative_asset_video.Url = nv.Video.Src
-							//fmt.Println("title:", nv.Title.Title)
-							admnative_asset.Id = nv.Id
-							admnative_asset.Video = admnative_asset_video
-						} else if nv.Asset_oneof == 6 {
-							var admnative_asset_data response_seatbid_bid_admoneof_admnative_asset_data
-							admnative_asset_data.Value = nv.Data.Data
-							//fmt.Println("title:", nv.Title.Title)
-							admnative_asset.Id = nv.Id
-							admnative_asset.Data = admnative_asset_data
-						}
-						admnative.Assets = append(admnative.Assets, admnative_asset)
-					}
-					admnative.Link.Url = Adinfo.Ext.Clkurl
-					admoneof.Admnative = admnative
-					responseJson_seatbid_bid.Admoneof = admoneof
-					fmt.Println(" Admoneof admoneof ")
-				}
-
-				responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
-				responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
-				fmt.Printf("add adid \n")
-			} else {
-				//fmt.Printf(responseJson.Seatbid)
-				fmt.Printf("add not adid \n")
-			}
 		}
 
+		//c.Ctx.WriteString("rjsonstr")
+		//c.Ctx.WriteString(string(rjsonstr))
 	} else {
-		//c.Ctx.WriteString("requestJson.id err : \n")
+
+		//c.Ctx.WriteString("rjsonstr Unmarshal failed")
+		//fmt.Println("err:", err)
 	}
+	responseJson["ts"] = 0
+	responseJson["id"] = requestJson["id"]
+
+	if imp, ok := requestJson["imp"].([]interface{}); ok {
+		//fmt.Printf("%#v", slice)
+		for _, imp_i := range imp {
+			imp_i_json := make(map[string]interface{})
+			imp_i_json_str, _ := json.Marshal(imp_i)
+			if err := json.Unmarshal([]byte(imp_i_json_str), &imp_i_json); err == nil {
+			}
+			if _, ok := imp_i_json["native"]; ok {
+
+				need_ad_type = 5
+			} else if _, ok := imp_i_json["video"]; ok {
+
+				need_ad_type = 3
+			} else if _, ok := imp_i_json["banner"]; ok {
+
+				need_ad_type = 1
+			}
+			break
+		}
+	}
+	fmt.Println("need_ad_type:", need_ad_type)
+
+	//if Adinfo, err := searchAd(requestJson); err == nil {
+
+	//if Adinfo.Adid > 0 {
+	res_adid = 134
+	// 这里继续填写广告信息
+
+	//var responseJson_seatbid map[string]interface{}
+	//var responseJson_seatbid_bid map[string]interface{}
+	//var responseJson_seatbid_bid_ext map[string]interface{}
+	//responseJson_seatbid_bid["id"] = "id-" + strconv.Itoa(res_adid)
+
+	//responseJson_seatbid_bid["impid"] = "impid-" + strconv.Itoa(res_adid)
+	/*
+		responseJson_seatbid_bid.Price = float64(Adinfo.Price) / 100
+		responseJson_seatbid_bid.Adid = "Adid-" + strconv.Itoa(Adinfo.Adid)
+		responseJson_seatbid_bid.W = Adinfo.Banner.Weight
+		responseJson_seatbid_bid.H = Adinfo.Banner.Height
+		responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
+		responseJson_seatbid_bid.Adm = Adinfo.Ext.Adm
+		responseJson_seatbid_bid.Fallback_url = Adinfo.Ext.Fallback_url
+		responseJson_seatbid_bid.Fallback_action = Adinfo.Ext.Fallback_action
+		responseJson_seatbid_bid.Nurl = Adinfo.Ext.Nurl
+		responseJson_seatbid_bid.Play_start_trackers = Adinfo.Ext.Play_start_trackers
+		responseJson_seatbid_bid.Play_end_trackers = Adinfo.Ext.Play_end_trackers
+		responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
+		responseJson_seatbid_bid_ext.Imptrackers = responseJson_seatbid_bid_ext.Imptrackers
+		responseJson_seatbid_bid_ext.Clktrackers = responseJson_seatbid_bid_ext.Clktrackers
+		responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
+		responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
+
+		responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
+
+		// 原生广告，填充assets信息
+		if requestJson.Imp[0].Ext.Ad_type == 3 {
+			var admoneof response_seatbid_bid_admoneof
+			var admnative response_seatbid_bid_admoneof_admnative
+			//
+			for _, nv := range Adinfo.Native.Assets {
+				//jsonStrtemp, _ := json.MarshalIndent(nv, "", "\t") //格式化编码
+				//fmt.Println("jsonStrtemp:", string(jsonStrtemp))
+				var admnative_asset response_seatbid_bid_admoneof_admnative_asset
+
+				if nv.Asset_oneof == 3 {
+					var admnative_asset_title response_seatbid_bid_admoneof_admnative_asset_title
+					admnative_asset_title.Text = nv.Title.Title
+					//fmt.Println("title:", nv.Title.Title)
+					admnative_asset.Id = nv.Id
+					admnative_asset.Title = admnative_asset_title
+				} else if nv.Asset_oneof == 4 {
+					var admnative_asset_image response_seatbid_bid_admoneof_admnative_asset_image
+					admnative_asset_image.Url = nv.Image.Src
+					admnative_asset.Id = nv.Id
+					admnative_asset.Img = admnative_asset_image
+				} else if nv.Asset_oneof == 5 {
+					var admnative_asset_video response_seatbid_bid_admoneof_admnative_asset_video
+					admnative_asset_video.Url = nv.Video.Src
+					//fmt.Println("title:", nv.Title.Title)
+					admnative_asset.Id = nv.Id
+					admnative_asset.Video = admnative_asset_video
+				} else if nv.Asset_oneof == 6 {
+					var admnative_asset_data response_seatbid_bid_admoneof_admnative_asset_data
+					admnative_asset_data.Value = nv.Data.Data
+					//fmt.Println("title:", nv.Title.Title)
+					admnative_asset.Id = nv.Id
+					admnative_asset.Data = admnative_asset_data
+				}
+				admnative.Assets = append(admnative.Assets, admnative_asset)
+			}
+			admnative.Link.Url = Adinfo.Ext.Clkurl
+			admoneof.Admnative = admnative
+			responseJson_seatbid_bid.Admoneof = admoneof
+			fmt.Println(" Admoneof admoneof ")
+		}
+	*/
+	//responseJson_seatbid["bid"] = append(responseJson_seatbid["bid"], responseJson_seatbid_bid)
+	//responseJson["seatbid"] = append(responseJson["seatbid"], responseJson_seatbid)
+	fmt.Println("add adid ", res_adid)
+	//} else {
+	//fmt.Printf(responseJson.Seatbid)
+	//	fmt.Printf("add not adid \n")
+	//}
+	//}
 
 	//time.Sleep(100 * time.Nanosecond)
 	end := time.Now().Nanosecond()
 	//fmt.Fprintln(writer," responseJson is ",responseJson)
-	responseJson.Ts = int64(end - start)
+	responseJson["ts"] = int64(end - start)
 	fmt.Println("start:", start)
 	fmt.Println("end:", end)
 
@@ -615,6 +641,194 @@ func (c *MainController) GetAdJson() {
 	beego.Info(need_ad_type, "\x02", res_adid)
 
 	return
+}
+
+func (c *MainController) Json() {
+	inputString := c.Ctx.Input.RequestBody
+	var requestJson request
+	var responseJson response
+	if err := json.Unmarshal([]byte(inputString), &requestJson); err == nil {
+	}
+	responseJson = getAdJson(requestJson)
+	//c.Data["json"] = responseJson
+	//c.ServeJSON()
+	//jsonStr, err := json.MarshalIndent(responseJson, "", "\t") //格式化编码
+	jsonStr, err := json.Marshal(responseJson) //格式化编码
+	if err != nil {
+		c.Ctx.WriteString(" responseJson is failed \n")
+	}
+	c.Ctx.WriteString(string(jsonStr))
+}
+func (c *MainController) Proto() {
+	//inputString := c.Ctx.Input.RequestBody
+	//var requestJson request
+	//var responseJson response
+}
+func getAdJson(requestJson request) (responseJson response) {
+	//return
+	//c.Ctx.WriteString("this is GetAdJson \n")
+	//c.Ctx.WriteString(string(c.Ctx.Input.RequestBody) + "\n")
+	//c.Ctx.WriteString("c.Ctx.Input.RequestBody end \n")
+	//inputString := c.Ctx.Input.RequestBody
+	//var requestJson request
+	//var responseJson response
+	need_ad_type := 0
+	res_adid := 0
+	start := time.Now().Nanosecond()
+	fmt.Println("requestJson.Id:", requestJson.Id)
+	fmt.Println("responseJson.Id:", responseJson.Id)
+	/*
+		var rjson map[string]interface{}
+
+		if err := json.Unmarshal([]byte(inputString), &rjson); err == nil {
+
+			c.Ctx.WriteString("rjsonstr Unmarshal success")
+			rjsonstr, err := json.MarshalIndent(rjson, "", "\t")
+			if err == nil {
+				c.Ctx.WriteString("rjsonstr Unmarshal success")
+			} else {
+				c.Ctx.WriteString("rjsonstr Unmarshal failed")
+
+			}
+
+			c.Ctx.WriteString("rjsonstr")
+			c.Ctx.WriteString(string(rjsonstr))
+		} else {
+
+			c.Ctx.WriteString("rjsonstr Unmarshal failed")
+			fmt.Println("err:", err)
+		}
+	*/
+	responseJson.Ts = 0
+	responseJson.Seatbid = []response_seatbid{}
+	//if err := json.Unmarshal([]byte(inputString), &requestJson); err == nil {
+
+	responseJson.Id = requestJson.Id
+	if requestJson.Imp[0].Native.RequestOneof.RequestNative.Layout > 0 {
+		need_ad_type = 5
+	} else if requestJson.Imp[0].Video.W > 0 {
+		need_ad_type = 3
+	} else if requestJson.Imp[0].Banner.W > 0 {
+		need_ad_type = 1
+	}
+	//responseJson = searchAd(requestJson)
+	if Adinfo, err := searchAd(requestJson); err == nil {
+
+		if Adinfo.Adid > 0 {
+			res_adid = Adinfo.Adid
+			// 这里继续填写广告信息
+
+			var responseJson_seatbid response_seatbid
+			var responseJson_seatbid_bid response_seatbid_bid
+			var responseJson_seatbid_bid_ext response_seatbid_bid_ext
+			responseJson_seatbid_bid.Id = "id-" + strconv.Itoa(Adinfo.Adid)
+			responseJson_seatbid_bid.Impid = "impid-" + strconv.Itoa(Adinfo.Adid)
+			responseJson_seatbid_bid.Price = float64(Adinfo.Price) / 100
+			responseJson_seatbid_bid.Adid = "Adid-" + strconv.Itoa(Adinfo.Adid)
+			responseJson_seatbid_bid.W = Adinfo.Banner.Weight
+			responseJson_seatbid_bid.H = Adinfo.Banner.Height
+			responseJson_seatbid_bid.Iurl = Adinfo.Banner.Src
+			responseJson_seatbid_bid.Adm = Adinfo.Ext.Adm
+			responseJson_seatbid_bid.Fallback_url = Adinfo.Ext.Fallback_url
+			responseJson_seatbid_bid.Fallback_action = Adinfo.Ext.Fallback_action
+			responseJson_seatbid_bid.Nurl = Adinfo.Ext.Nurl
+			responseJson_seatbid_bid.Play_start_trackers = Adinfo.Ext.Play_start_trackers
+			responseJson_seatbid_bid.Play_end_trackers = Adinfo.Ext.Play_end_trackers
+
+			responseJson_seatbid_bid_ext.Clkurl = Adinfo.Ext.Clkurl
+			/*
+				for _, tmp := range Adinfo.Ext.Imptrackers {
+					responseJson_seatbid_bid_ext.Imptrackers = append(responseJson_seatbid_bid_ext.Imptrackers, tmp)
+				}
+				for _, tmp := range Adinfo.Ext.Clktrackers {
+					responseJson_seatbid_bid_ext.Clktrackers = append(responseJson_seatbid_bid_ext.Clktrackers, tmp)
+				}
+			*/
+			responseJson_seatbid_bid_ext.Imptrackers = responseJson_seatbid_bid_ext.Imptrackers
+			responseJson_seatbid_bid_ext.Clktrackers = responseJson_seatbid_bid_ext.Clktrackers
+			responseJson_seatbid_bid_ext.Action = Adinfo.Ext.Action
+			responseJson_seatbid_bid_ext.Inventory_type = Adinfo.Ext.Inventory_type
+
+			responseJson_seatbid_bid.Ext = responseJson_seatbid_bid_ext
+
+			// 原生广告，填充assets信息
+			if requestJson.Imp[0].Ext.Ad_type == 3 {
+				var admoneof response_seatbid_bid_admoneof
+				var admnative response_seatbid_bid_admoneof_admnative
+				//
+				for _, nv := range Adinfo.Native.Assets {
+					//jsonStrtemp, _ := json.MarshalIndent(nv, "", "\t") //格式化编码
+					//fmt.Println("jsonStrtemp:", string(jsonStrtemp))
+					var admnative_asset response_seatbid_bid_admoneof_admnative_asset
+
+					if nv.Asset_oneof == 3 {
+						var admnative_asset_title response_seatbid_bid_admoneof_admnative_asset_title
+						admnative_asset_title.Text = nv.Title.Title
+						//fmt.Println("title:", nv.Title.Title)
+						admnative_asset.Id = nv.Id
+						admnative_asset.Title = admnative_asset_title
+					} else if nv.Asset_oneof == 4 {
+						var admnative_asset_image response_seatbid_bid_admoneof_admnative_asset_image
+						admnative_asset_image.Url = nv.Image.Src
+						admnative_asset.Id = nv.Id
+						admnative_asset.Img = admnative_asset_image
+					} else if nv.Asset_oneof == 5 {
+						var admnative_asset_video response_seatbid_bid_admoneof_admnative_asset_video
+						admnative_asset_video.Url = nv.Video.Src
+						//fmt.Println("title:", nv.Title.Title)
+						admnative_asset.Id = nv.Id
+						admnative_asset.Video = admnative_asset_video
+					} else if nv.Asset_oneof == 6 {
+						var admnative_asset_data response_seatbid_bid_admoneof_admnative_asset_data
+						admnative_asset_data.Value = nv.Data.Data
+						//fmt.Println("title:", nv.Title.Title)
+						admnative_asset.Id = nv.Id
+						admnative_asset.Data = admnative_asset_data
+					}
+					admnative.Assets = append(admnative.Assets, admnative_asset)
+				}
+				admnative.Link.Url = Adinfo.Ext.Clkurl
+				admoneof.Admnative = admnative
+				responseJson_seatbid_bid.Admoneof = admoneof
+				fmt.Println(" Admoneof admoneof ")
+			}
+
+			responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
+			responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
+			fmt.Printf("add adid \n")
+		} else {
+			//fmt.Printf(responseJson.Seatbid)
+			fmt.Printf("add not adid \n")
+		}
+	}
+
+	//} else {
+	//c.Ctx.WriteString("requestJson.id err : \n")
+	//}
+
+	//time.Sleep(100 * time.Nanosecond)
+	end := time.Now().Nanosecond()
+	//fmt.Fprintln(writer," responseJson is ",responseJson)
+	responseJson.Ts = int64(end - start)
+	fmt.Println("start:", start)
+	fmt.Println("end:", end)
+
+	//c.Data["json"] = responseJson
+	//c.ServeJSON()
+	/*
+		//jsonStr, err := json.MarshalIndent(responseJson, "", "\t") //格式化编码
+		jsonStr, err := json.Marshal(responseJson) //格式化编码
+		if err != nil {
+			c.Ctx.WriteString(" responseJson is failed \n")
+		}
+
+		//fmt.Println("response json : ", jsonStr)
+
+		c.Ctx.WriteString(string(jsonStr))
+	*/
+	beego.Info(need_ad_type, "\x02", res_adid)
+
+	return responseJson
 }
 
 func searchAd(requestJson request) (adinfo adinfo, err error) {
