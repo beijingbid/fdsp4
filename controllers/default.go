@@ -24,6 +24,9 @@ import (
 
 	//"fdsp4/proto/zplay"
 
+	//"github.com/golang/protobuf/proto"
+	//"protoc-gen-jsonschema"
+
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/logs"
 )
@@ -399,12 +402,12 @@ func initLogger() (err error) {
 }
 
 func (c *MainController) Load() {
-	c.Ctx.WriteString("this is Load \n")
-	c.Ctx.WriteString(beego.AppConfig.String("adinfo_file") + "\n")
+	//c.Ctx.WriteString("this is Load \n")
+	//c.Ctx.WriteString(beego.AppConfig.String("adinfo_file") + "\n")
 
 	inputFile, inputError := os.Open(beego.AppConfig.String("adinfo_file"))
 	if inputError != nil {
-		c.Ctx.WriteString("An error occurred on opening: adinfo_file")
+		logs.Debug("An error occurred on opening: adinfo_file ", inputError)
 		return
 	}
 	defer inputFile.Close()
@@ -445,6 +448,7 @@ func (c *MainController) Load() {
 		i++
 	}
 	adinfo_map_lock.Unlock()
+	logs.Debug("Load Adinfo success ")
 
 	return
 }
@@ -470,6 +474,7 @@ func (c *MainController) Clear() {
 	adinfo_map = make(map[int]adinfo)
 	adinfo_map_lock.Unlock()
 
+	logs.Debug("Clear Adinfo success ")
 	return
 }
 
@@ -645,6 +650,7 @@ func (c *MainController) GetAdJson2() {
 
 func (c *MainController) Json() {
 	inputString := c.Ctx.Input.RequestBody
+	logs.Debug("inputString:" + string(inputString))
 	var requestJson request
 	var responseJson response
 	if err := json.Unmarshal([]byte(inputString), &requestJson); err == nil {
@@ -658,11 +664,35 @@ func (c *MainController) Json() {
 		c.Ctx.WriteString(" responseJson is failed \n")
 	}
 	c.Ctx.WriteString(string(jsonStr))
+
+	logs.Debug("outputstring:" + string(jsonStr))
 }
 func (c *MainController) Proto() {
-	//inputString := c.Ctx.Input.RequestBody
-	//var requestJson request
-	//var responseJson response
+	/*
+		inputString := c.Ctx.Input.RequestBody
+		var requestJson request
+		var responseJson response
+		bid_req := &zadx.BidRequest{}
+
+
+
+		err = proto.Unmarshal(res_data, bid_req)
+		if err != nil {
+			GetAT().Error(fmt.Sprintf("proto.Unmarshal, error: %v", err))
+			return
+		}
+
+		if err := proto.Unmarshal(&requestJson, inputString); err == nil {
+			responseJson = getAdJson(requestJson)
+		} else {
+
+		}
+		jsonStr, err := proto.Marshal(responseJson)
+		if err != nil {
+			c.Ctx.WriteString(" responseJson is failed \n")
+		}
+		c.Ctx.WriteString(string(jsonStr))
+	*/
 }
 func getAdJson(requestJson request) (responseJson response) {
 	//return
@@ -675,8 +705,8 @@ func getAdJson(requestJson request) (responseJson response) {
 	need_ad_type := 0
 	res_adid := 0
 	start := time.Now().Nanosecond()
-	fmt.Println("requestJson.Id:", requestJson.Id)
-	fmt.Println("responseJson.Id:", responseJson.Id)
+	logs.Debug("requestJson.Id:", requestJson.Id)
+	logs.Debug("responseJson.Id:", responseJson.Id)
 	/*
 		var rjson map[string]interface{}
 
@@ -795,10 +825,10 @@ func getAdJson(requestJson request) (responseJson response) {
 
 			responseJson_seatbid.Bid = append(responseJson_seatbid.Bid, responseJson_seatbid_bid)
 			responseJson.Seatbid = append(responseJson.Seatbid, responseJson_seatbid)
-			fmt.Printf("add adid \n")
+			logs.Debug("add adid \n")
 		} else {
 			//fmt.Printf(responseJson.Seatbid)
-			fmt.Printf("add not adid \n")
+			logs.Debug("add not adid \n")
 		}
 	}
 
@@ -810,8 +840,8 @@ func getAdJson(requestJson request) (responseJson response) {
 	end := time.Now().Nanosecond()
 	//fmt.Fprintln(writer," responseJson is ",responseJson)
 	responseJson.Ts = int64(end - start)
-	fmt.Println("start:", start)
-	fmt.Println("end:", end)
+	logs.Debug("start:", start)
+	logs.Debug("end:", end)
 
 	//c.Data["json"] = responseJson
 	//c.ServeJSON()
@@ -827,6 +857,7 @@ func getAdJson(requestJson request) (responseJson response) {
 		c.Ctx.WriteString(string(jsonStr))
 	*/
 	beego.Info(need_ad_type, "\x02", res_adid)
+	//logs.AccessLog()
 
 	return responseJson
 }
@@ -838,13 +869,13 @@ func searchAd(requestJson request) (adinfo adinfo, err error) {
 	var adinfo_map_res = []int{}
 	//map_adid_res := make(map[int])
 	if requestJson.Imp[0].Native.RequestOneof.RequestNative.Layout > 0 {
-		fmt.Println(" is native ")
+		logs.Debug(" is native ")
 		need_ad_type = 5
 	} else if requestJson.Imp[0].Video.W > 0 {
-		fmt.Println(" is video ")
+		logs.Debug(" is video ")
 		need_ad_type = 3
 	} else if requestJson.Imp[0].Banner.W > 0 {
-		fmt.Println(" is banner ")
+		logs.Debug(" is banner ")
 		need_ad_type = 1
 	}
 
@@ -877,10 +908,10 @@ func searchAd(requestJson request) (adinfo adinfo, err error) {
 
 		if adinfo, err := getAdInfo(res_adid); err == nil {
 
-			fmt.Println("searchAd success ", adinfo)
+			logs.Debug("searchAd success ", adinfo)
 			return adinfo, nil
 		} else {
-			fmt.Println("searchAd failed ")
+			logs.Debug("searchAd failed ")
 			var err error
 			err = errors.New("searchAd failed ")
 			return adinfo, err
@@ -893,7 +924,7 @@ func searchAd(requestJson request) (adinfo adinfo, err error) {
 }
 
 func getAdInfo(adid int) (adinfo adinfo, err error) {
-	fmt.Println("get adinfo :", adid)
+	logs.Debug("get adinfo :", adid)
 	if _, ok := adinfo_map[adid]; ok {
 		return adinfo_map[adid], nil
 	} else {

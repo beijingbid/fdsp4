@@ -31,6 +31,6 @@ func initLogger() (err error) {
 	return
 }
 func main() {
-	initLogger()
 	beego.Run()
+	initLogger()
 }
